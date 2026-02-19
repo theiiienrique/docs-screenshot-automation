@@ -7,10 +7,12 @@ const BASE = "https://theiiienrique.github.io";
 // Pages to capture.
 // Tip: set waitFor to a stable piece of text or a stable CSS selector on that page.
 const PAGES = [
-  { name: "home", url: `${BASE}/`, waitFor: "css=main" },
-  { name: "about", url: `${BASE}/about`, waitFor: "css=main" },
-  { name: "contact", url: `${BASE}/contact`, waitFor: "css=main" },
-  { name: "docs", url: `${BASE}/docs`, waitFor: "css=main" },
+  {
+    name: "home-hero",
+    url: `${BASE}/`,
+    waitFor: "css=header.hero",
+    element: "css=header.hero",
+  },
 ];
 
 // Build output filepath safely
@@ -55,7 +57,12 @@ function outPath(outDir, name) {
       // Give layout/fonts a beat to settle (small but helpful)
       await page.waitForTimeout(250);
 
-      await page.screenshot({ path: file, fullPage: true });
+      if (item.element) {
+        const el = page.locator(item.element).first();
+        await el.screenshot({ path: file });
+      } else {
+        await page.screenshot({ path: file, fullPage: true });
+      }
 
       console.log(`✅ ${item.name} -> ${path.relative(process.cwd(), file)}`);
       results.push({ name: item.name, ok: true, file });
