@@ -2,19 +2,19 @@ const { chromium } = require("@playwright/test");
 const path = require("path");
 const fs = require("fs");
 
-// 1) Define what to capture (name -> filename, url -> target)
+const BASE = "https://theiiienrique.github.io";
+
+// Pages to capture.
+// Tip: set waitFor to a stable piece of text or a stable CSS selector on that page.
 const PAGES = [
-  { name: "playwright-home", url: "https://playwright.dev/" },
-  { name: "playwright-docs-intro", url: "https://playwright.dev/docs/intro" },
-  {
-    name: "playwright-docs-screenshots",
-    url: "https://playwright.dev/docs/screenshots",
-  },
+  { name: "home", url: `${BASE}/`, waitFor: "css=main" },
+  { name: "about", url: `${BASE}/about`, waitFor: "css=main" },
+  { name: "contact", url: `${BASE}/contact`, waitFor: "css=main" },
+  { name: "docs", url: `${BASE}/docs`, waitFor: "css=main" },
 ];
 
-// 2) Small helper: build output filepath
+// Build output filepath safely
 function outPath(outDir, name) {
-  // Ensure predictable filenames
   const safe = name.toLowerCase().replace(/[^a-z0-9-_]+/g, "-");
   return path.join(outDir, `${safe}.png`);
 }
@@ -23,17 +23,13 @@ function outPath(outDir, name) {
   const outDir = path.join(__dirname, "..", "screenshots");
   fs.mkdirSync(outDir, { recursive: true });
 
-  const browser = await chromium.launch({
-    // Set to false if you want to watch it run
-    headless: true,
-  });
+  const browser = await chromium.launch({ headless: true });
 
-  // One context + page = consistent settings across screenshots
   const context = await browser.newContext({
     viewport: { width: 1440, height: 900 },
-    // If you ever need consistent appearance:
-    // colorScheme: "light",
-    // reducedMotion: "reduce",
+    // These reduce visual variability (nice for docs screenshots)
+    deviceScaleFactor: 2,
+    reducedMotion: "reduce",
   });
 
   const page = await context.newPage();
@@ -44,11 +40,20 @@ function outPath(outDir, name) {
     const file = outPath(outDir, item.name);
 
     try {
-      // Navigate + wait for page to settle
-      await page.goto(item.url, { waitUntil: "networkidle", timeout: 45_000 });
+      await page.goto(item.url, {
+        waitUntil: "domcontentloaded",
+        timeout: 45_000,
+      });
 
-      // Optional: a tiny pause can help with late-loading fonts/animations
-      // await page.waitForTimeout(250);
+      // If you specify a waitFor cue, we wait for it before taking the screenshot.
+      if (item.waitFor) {
+        // Works with Playwright selector engines like:
+        // "text=..." or "css=..." or "role=..." etc.
+        await page.waitForSelector(item.waitFor, { timeout: 20_000 });
+      }
+
+      // Give layout/fonts a beat to settle (small but helpful)
+      await page.waitForTimeout(250);
 
       await page.screenshot({ path: file, fullPage: true });
 
@@ -63,13 +68,11 @@ function outPath(outDir, name) {
         file,
         error: err?.message || String(err),
       });
-      // Keep going even if one page fails
     }
   }
 
   await browser.close();
 
-  // Summary (helpful for CI later)
   const failed = results.filter((r) => !r.ok);
   console.log(
     `\nRun summary: ${results.length - failed.length}/${results.length} succeeded.`,

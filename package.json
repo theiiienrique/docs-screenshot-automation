@@ -4,7 +4,9 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "screenshots": "node scripts/screenshots.js"
+    "screenshots": "node scripts/screenshots.js",
+    "links": "node scripts/list-links.js",
+    "crawl": "node scripts/crawl-links.js"
   },
   "keywords": [],
   "author": "",
